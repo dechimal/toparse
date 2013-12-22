@@ -1,4 +1,8 @@
 toparse: Commandline parameter parsing library
 
+Requirements:
+  C++11 compiler
+  Boost libraries
+
 Usage:
   See toparse_test.cpp.
