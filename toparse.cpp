@@ -4,7 +4,6 @@
 #include <cstring>
 #include <algorithm>
 #include <boost/optional/optional.hpp>
-#include <boost/algorithm/string/predicate.hpp>
 
 #include "toparse.hpp"
 
@@ -36,13 +35,15 @@ result parse(int argc, char * const argv[], description const & desc) {
 
     while (next(), cont()) {
         char const * str = *argv;
-        if (std::strcmp(str, "--") == 0) {
-            while (next(), cont()) pos_params.push_back(str);
-            break;
-        } else if (b::starts_with(str, "--")) {
+        auto size = strlen(str);
+        auto end = str+size;
+        auto hyphens = "--";
+        if (std::search(str, end, hyphens, hyphens + 2) == str) {
+            if (size == 2) {
+                while (next(), cont()) pos_params.push_back(*argv);
+                break;
+            }
             str += 2;
-            std::size_t size = std::strlen(str);
-            auto end = str+size;
             auto eq_pos = std::find(str, end, '=');
             auto i = std::find_if(desc.begin(), desc.end(), [&] (option const & opt) {
                     return std::search(str, end, opt.name.begin(), opt.name.end()) == str;
@@ -68,7 +69,7 @@ result parse(int argc, char * const argv[], description const & desc) {
             default:
                 opt_params.emplace_back(long_name, eq_pos == end ? b::none : b::make_optional(std::string(eq_pos+1)));
             }
-        } else if (str[0] == '-' && str[1] != '\0') {
+        } else if (size > 1 && str[0] == '-' && str[1] != '\0') {
             while (++str, *str != '\0') {
                 char short_name = *str;
                 auto i = std::find_if(desc.begin(), desc.end(), [&] (option const & opt) {

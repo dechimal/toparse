@@ -27,7 +27,7 @@ void test(std::vector<char const *> const & data, toparse::description const & d
 
 int main() {
     auto expected_pos_params = std::vector<std::string> {
-            "value1", "value2", "value3", "value4", "value5"
+            "value1", "value2", "value3", "value4", "value5", "-f1", "--mandatory"
         };
     auto expected_opt_params = std::vector<std::tuple<std::string, b::optional<std::string>>> {
             std::make_tuple("flag", b::none),
@@ -50,7 +50,7 @@ int main() {
         };
     ::test({ "--flag", "-f", "value1", "--mandatory=1", "-m1", "value2", "-m", "1", "--mandatory", "1",
              "-m", "", "value3", "--mandatory", "", "--mandatory=", "--optional=1", "-o1", "value4", "--optional",
-             "-o", "value5", "--optional=", "-ffm1" },
+             "-o", "value5", "--optional=", "-ffm1", "--", "-f1", "--mandatory" },
            { { "flag", 'f', arg::none },
              { "mandatory", 'm', arg::mandatory },
              { "optional", 'o', arg::optional } },
