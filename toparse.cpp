@@ -59,7 +59,7 @@ result parse(int argc, char * const argv[], description const & desc) {
             case arg::mandatory:
                 if (eq_pos == end) {
                     next();
-                    if (!cont()) throw here::argument_not_found("--");
+                    if (!cont()) throw here::argument_not_found("--" + std::string(str));
                     str = *argv;
                 } else {
                     str = eq_pos+1;
