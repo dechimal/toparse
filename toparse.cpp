@@ -52,7 +52,7 @@ options options_from_optstring(char const * optstr, char const * long_optstr) {
     if (optstr) {
         while (char short_name = *optstr++) {
             if (!short_name) break;
-            auto n = strspn(optstr, ":");
+            auto n = std::strspn(optstr, ":");
             optstr += n;
             arg req = static_cast<arg>(std::min((std::size_t)2, n));
             opts.emplace_back(short_name, req);
@@ -60,7 +60,7 @@ options options_from_optstring(char const * optstr, char const * long_optstr) {
     }
     if (long_optstr) {
         while (char const * long_name = long_optstr) {
-            auto m = strcspn(long_optstr, ",");
+            auto m = std::strcspn(long_optstr, ",");
             if (!m) break;
             auto p = long_optstr += m;
             auto n = 0;
@@ -95,11 +95,8 @@ void parse_impl(int argc, char const * const argv[], options const & opts, Callb
         auto size = strlen(str);
         auto end = str+size;
         auto hyphens = "--";
-        if (std::search(str, end, hyphens, hyphens + 2) == str) {
-            if (size == 2) {
-                while (next()) callback(b::none, std::string(*argv));
-                break;
-            }
+        if (std::strspn(str, "-") >= 2) {
+            if (size == 2) goto rest;
             str += 2;
             auto eq_pos = std::find(str, end, '=');
             auto i = std::find_if(opts.begin(), opts.end(), [&] (option const & opt) {
@@ -107,25 +104,20 @@ void parse_impl(int argc, char const * const argv[], options const & opts, Callb
             });
             if (i == opts.end()) throw here::unrecognized_option("--" + std::string(str, eq_pos));
             auto arg_req = i->arg_requirement();
-            auto const & long_name = i->name();
-            switch (arg_req) {
-            case arg::none:
+            b::optional<std::string> a;
+            if (arg_req == arg::none) {
                 if (eq_pos != end) throw here::unnecessary_argument("--" + std::string(str, eq_pos));
-                callback(*i, b::none);
-                break;
-            case arg::mandatory:
+            } else if (arg_req == arg::mandatory) {
                 if (eq_pos == end) {
                     if (!next()) throw here::argument_not_found("--" + std::string(str));
-                    str = *argv;
+                    a = *argv;
                 } else {
-                    str = eq_pos+1;
+                    a = eq_pos+1;
                 }
-                callback(*i, std::string(str));
-                break;
-            default:
-                auto a = eq_pos == end ? b::none : b::make_optional(std::string(eq_pos+1));
-                callback(*i, std::move(a));
+            } else {
+                if (eq_pos != end) a = eq_pos+1;
             }
+            callback(*i, std::move(a));
         } else if (size > 1 && str[0] == '-' && str[1] != '\0') {
             while (++str, *str != '\0') {
                 char short_name = *str;
@@ -133,30 +125,29 @@ void parse_impl(int argc, char const * const argv[], options const & opts, Callb
                     return opt.short_name() != '\0' && opt.short_name() == short_name;
                 });
                 if (i == opts.end()) throw here::unrecognized_option(std::string("-")+*str);
-                switch (i->arg_requirement()) {
-                case arg::none:
-                    callback(*i, b::none);
-                    break;
-                case arg::mandatory:
+                auto arg_req = i->arg_requirement();
+                b::optional<std::string> a;
+                if (arg_req == arg::mandatory) {
                     ++str;
                     if (*str == '\0') {
                         if (!next()) throw here::argument_not_found(std::string("-")+*str);
                         str = *argv;
                     }
-                    callback(*i, std::string(str));
-                    goto finish;
-                default:
+                    a = str;
+                } else if (arg_req == arg::optional) {
                     ++str;
-                    auto a = *str == '\0' ? b::none : b::make_optional(std::string(str));
-                    callback(*i, std::move(a));
-                    goto finish;
+                    if (*str != '\0') a = str;
                 }
+                callback(*i, std::move(a));
+                if (arg_req != arg::none) break;
             }
-        finish:;
         } else {
             callback(b::none, std::string(str));
         }
     }
+    return;
+rest:
+    while (next()) callback(b::none, std::string(*argv));
 }
 
 error_base::error_base(std::string msg) : msg(msg) {}
