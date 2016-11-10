@@ -37,25 +37,24 @@ namespace b = boost;
 
 enum struct arg;
 struct option;
+struct error_base;
 struct invalid_option_name;
 struct unnecessary_argument;
 struct argument_not_found;
 struct invalid_optstring;
 
-using result =
-    std::tuple<
-        std::vector<std::string>,
-        std::vector<std::tuple<option, b::optional<std::string>>>
-    >;
-using merged_result =
+using options = std::vector<option>;
+using pos_args = std::vector<std::string>;
+using opt_args = std::vector<std::tuple<option, b::optional<std::string>>>;
+using result = std::tuple<pos_args, opt_args>;
+using unparted_result =
     std::vector<std::tuple<b::optional<option>, b::optional<std::string>>>;
-using description = std::vector<option>;
 
-result parse(int argc, char const * const argv[], description const &);
-result getopt(int argc, char const * const argv[], char const * opts, char const * long_opts);
-merged_result parse_merged(int argc, char const * const argv[], description const &);
-merged_result getopt_merged(int argc, char const * const argv[], char const * opts, char const * long_opts);
-description description_from_string(char const * opts, char const * long_opts);
+result parse(int argc, char const * const argv[], options const & opts);
+unparted_result parse_unparted(int argc, char const * const argv[], options const & opts);
+result getopt(int argc, char const * const argv[], char const * optstr, char const * long_optstr);
+unparted_result getopt_unparted(int argc, char const * const argv[], char const * optstr, char const * long_optstr);
+options options_from_optstring(char const * optstr, char const * long_optstr);
 bool operator==(option const & a, option const & b) noexcept;
 inline bool operator!=(option const & a, option const & b) noexcept;
 
@@ -67,7 +66,6 @@ struct option {
     char short_name() const noexcept { return short_name_; }
     arg arg_requirement() const noexcept { return arg_req; }
 private:
-    friend struct option_access;
     std::string name_;
     char short_name_;
     arg arg_req;
@@ -83,54 +81,36 @@ enum struct arg {
     optional,
 };
 
-struct invalid_option_name : std::exception {
-    invalid_option_name(std::string name);
+struct error_base : std::exception {
+    error_base(std::string msg);
     char const * what() const noexcept override;
 private:
     std::string msg;
 };
 
-struct unrecognized_option : std::exception {
-    unrecognized_option(std::string name);
-    char const * what() const noexcept override;
-private:
-    std::string msg;
-};
-struct unnecessary_argument : std::exception {
-    unnecessary_argument(std::string name);
-    char const * what() const noexcept override;
-private:
-    std::string msg;
-};
-struct argument_not_found : std::exception {
-    argument_not_found(std::string name);
-    char const * what() const noexcept override;
-private:
-    std::string msg;
-};
-
-struct invalid_optstring : std::exception {
-    invalid_optstring(std::string name);
-    char const * what() const noexcept override;
-private:
-    std::string msg;
-};
+struct invalid_option_name : error_base { invalid_option_name(std::string name); };
+struct unrecognized_option : error_base { unrecognized_option(std::string name); };
+struct unnecessary_argument : error_base { unnecessary_argument(std::string name); };
+struct argument_not_found : error_base { argument_not_found(std::string name); };
+struct invalid_optstring : error_base { invalid_optstring(std::string name); };
 
 }
 
 using detail::arg;
-using detail::description;
+using detail::options;
 using detail::result;
-using detail::merged_result;
+using detail::unparted_result;
 using detail::parse;
 using detail::option;
 using detail::getopt;
-using detail::parse_merged;
-using detail::getopt_merged;
-using detail::description_from_string;
+using detail::pos_args;
+using detail::opt_args;
+using detail::parse_unparted;
+using detail::getopt_unparted;
+using detail::options_from_optstring;
+using detail::error_base;
 using detail::invalid_option_name;
 using detail::unrecognized_option;
-using detail::invalid_option_name;
 using detail::unnecessary_argument;
 using detail::argument_not_found;
 using detail::invalid_optstring;
