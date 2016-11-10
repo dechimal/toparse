@@ -101,6 +101,11 @@ int main() {
         assert(false);
     } catch (toparse::unrecognized_option const &) {}
     try {
+        ::test({ "argv0", "--foobar" }, { { "foo", arg::none } },
+               {}, {}, {});
+        assert(false);
+    } catch (toparse::unrecognized_option const &) {}
+    try {
         ::test({ "argv0", "--foo=1" }, { { "foo", arg::none } },
                {}, {}, {});
         assert(false);

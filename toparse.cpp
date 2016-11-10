@@ -92,51 +92,48 @@ void parse_impl(int argc, char const * const argv[], options const & opts, Callb
 
     while (next()) {
         char const * str = *argv;
-        auto size = strlen(str);
-        auto end = str+size;
-        auto hyphens = "--";
-        if (std::strspn(str, "-") >= 2) {
-            if (size == 2) goto rest;
-            str += 2;
-            auto eq_pos = std::find(str, end, '=');
+        auto hyphens = std::strspn(str, "-");
+        if (hyphens >= 2) {
+            if (!*(str += 2)) goto rest;
+            auto n = std::strcspn(str, "=");
+            if (!n) throw here::unrecognized_option("--=");
+            auto eq_pos = str + n;
             auto i = std::find_if(opts.begin(), opts.end(), [&] (option const & opt) {
-                return !opt.name().empty() && std::search(str, end, opt.name().begin(), opt.name().end()) == str;
+                return !std::strncmp(opt.name().c_str(), str, n);
             });
             if (i == opts.end()) throw here::unrecognized_option("--" + std::string(str, eq_pos));
             auto arg_req = i->arg_requirement();
             b::optional<std::string> a;
+            bool cont = *eq_pos;
             if (arg_req == arg::none) {
-                if (eq_pos != end) throw here::unnecessary_argument("--" + std::string(str, eq_pos));
+                if (cont) throw here::unnecessary_argument("--" + std::string(str, eq_pos));
             } else if (arg_req == arg::mandatory) {
-                if (eq_pos == end) {
+                if (!cont) {
                     if (!next()) throw here::argument_not_found("--" + std::string(str));
                     a = *argv;
                 } else {
                     a = eq_pos+1;
                 }
             } else {
-                if (eq_pos != end) a = eq_pos+1;
+                if (cont) a = eq_pos+1;
             }
             callback(*i, std::move(a));
-        } else if (size > 1 && str[0] == '-' && str[1] != '\0') {
-            while (++str, *str != '\0') {
-                char short_name = *str;
+        } else if (hyphens && str[1]) {
+            while (char short_name = *++str) {
                 auto i = std::find_if(opts.begin(), opts.end(), [&] (option const & opt) {
-                    return opt.short_name() != '\0' && opt.short_name() == short_name;
+                    return opt.short_name() == short_name;
                 });
-                if (i == opts.end()) throw here::unrecognized_option(std::string("-")+*str);
+                if (i == opts.end()) throw here::unrecognized_option({ '-', short_name });
                 auto arg_req = i->arg_requirement();
                 b::optional<std::string> a;
                 if (arg_req == arg::mandatory) {
-                    ++str;
-                    if (*str == '\0') {
-                        if (!next()) throw here::argument_not_found(std::string("-")+*str);
+                    if (*++str == '\0') {
+                        if (!next()) throw here::argument_not_found({ '-', short_name });
                         str = *argv;
                     }
                     a = str;
                 } else if (arg_req == arg::optional) {
-                    ++str;
-                    if (*str != '\0') a = str;
+                    if (*++str != '\0') a = str;
                 }
                 callback(*i, std::move(a));
                 if (arg_req != arg::none) break;
